@@ -16,7 +16,7 @@ button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer}.primary{back
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.status{padding:8px;border-radius:8px;font-weight:bold;background:#eee}
 .banner{background:#b00020;color:white;border-radius:10px;padding:12px;text-align:center;font-weight:bold;animation:blink 1.4s infinite}.banner button{float:right;background:#fff;color:#b00020;padding:4px 7px}
 @keyframes blink{50%{opacity:.72}} .msg{min-height:50px;display:flex;align-items:center;justify-content:center}
-.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1450px}th,td{border:1px solid #ddd;padding:6px;vertical-align:middle}th{background:#eee}th:first-child,td:first-child{min-width:125px;width:125px}.car-select{min-width:115px;width:115px;text-align:center}.plate-col{min-width:155px;width:155px}.km-col{min-width:155px;width:155px}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1450px}th,td{border:1px solid #ddd;padding:6px;vertical-align:middle}th{background:#eee}th:first-child,td:first-child{min-width:125px;width:125px}.car-select{min-width:115px;width:115px;text-align:center}.plate-col{min-width:190px;width:190px}.plate-col input{min-width:180px;width:180px}.km-col{min-width:170px;width:170px}.km-col input{min-width:160px;width:160px}
 .oil{font-weight:bold;white-space:nowrap}.oil.normal{color:#17833b}.oil.attention{color:#b05a00}.oil.overdue{color:#b00020}
 .login{max-width:430px;margin:8vh auto}.hidden{display:none!important}.small{font-size:12px;color:#666}.right{text-align:right}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:15px;z-index:10}.modalbox{background:#fff;border-radius:12px;padding:18px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
@@ -161,8 +161,14 @@ window.addRow=async()=>{
  else {r.id=crypto.randomUUID();rows.push(r);localStorage.setItem(LS,JSON.stringify(rows))}
  if(firebaseConfigured)rows.push(r);render()
 };
-function select(v,opts,field,id){const cls=field==="carro"?"car-select":"";return `<select class="${cls}" data-id="${id}" data-field="${field}" onchange="editField(this)">${opts.map(x=>`<option value="${x}" ${String(x)===String(v)?"selected":""}>${x}</option>`).join("")}</select>`}
+function select(v,opts,field,id){const cls=field==="carro"?"car-select":"";const handler=field==="tipoManutencao"?"changeMaintenance(this)":"editField(this)";return `<select class="${cls}" data-id="${id}" data-field="${field}" onchange="${handler}">${opts.map(x=>`<option value="${x}" ${String(x)===String(v)?"selected":""}>${x}</option>`).join("")}</select>`}
 function input(v,field,id,type="text"){return `<input type="${type}" value="${String(v??"").replace(/"/g,"&quot;")}" data-id="${id}" data-field="${field}" onchange="editField(this)">`}
+window.changeMaintenance=async(x)=>{
+ const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;
+ const novo=x.value;
+ await editField(x);
+ setTimeout(()=>openDescription(r.id),150);
+};
 window.editField=async(x)=>{
  const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;
  const field=x.dataset.field;
@@ -178,14 +184,11 @@ window.editField=async(x)=>{
 
  render(false);
 
- if(field==="tipoManutencao"){
-   openDescription(r.id);
- }
 };
 window.openDescription=(id)=>{
  const r=rows.find(a=>a.id===id);if(!r)return;
  descriptionRowId=id;
- el("descTitle").textContent="Manutenção: "+r.tipoManutencao;
+ el("descTitle").textContent=r.tipoManutencao==="Outras manutenções"?"Outras manutenções — descreva o que foi feito":"Manutenção: "+r.tipoManutencao;
  el("descText").value=r.descricao||"";
  el("descModal").classList.remove("hidden");
  setTimeout(()=>el("descText").focus(),100);
