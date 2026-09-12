@@ -14,7 +14,7 @@ input,select,button{font:inherit}input,select{width:100%;padding:10px;border:1px
 button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer}.primary{background:#14532d;color:#fff}.secondary{background:#eee}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.field label{display:block;font-weight:bold;font-size:13px;margin-bottom:5px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.status{padding:8px;border-radius:8px;font-weight:bold;background:#eee}
-.banner{background:#14532d;color:white;border-radius:10px;padding:12px;text-align:center;font-weight:bold;animation:blink 1.4s infinite}.banner button{float:right;background:#fff;color:#b00020;padding:4px 7px}
+.banner{background:#b00020;color:white;border-radius:10px;padding:12px;text-align:center;font-weight:bold;animation:blink 1.4s infinite}.banner button{float:right;background:#fff;color:#b00020;padding:4px 7px}
 @keyframes blink{50%{opacity:.72}} .msg{min-height:50px;display:flex;align-items:center;justify-content:center}
 .tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1450px}th,td{border:1px solid #ddd;padding:6px;vertical-align:middle}th{background:#eee}th:first-child,td:first-child{min-width:125px;width:125px}.car-select{min-width:115px;width:115px;text-align:center}.plate-col{min-width:190px;width:190px}.plate-col input{min-width:180px;width:180px}.km-col{min-width:170px;width:170px}.km-col input{min-width:160px;width:160px}
 .oil{font-weight:bold;white-space:nowrap}.oil.normal{color:#17833b}.oil.attention{color:#b05a00}.oil.overdue{color:#b00020}
@@ -43,7 +43,7 @@ footer{text-align:center;color:#666;padding:18px;font-size:13px}
   <div class="field"><label>E-mail</label><input id="loginEmail" type="email" autocomplete="email"></div><br>
   <div class="field"><label>Senha</label><input id="loginPassword" type="password" autocomplete="current-password"></div>
   <div class="toolbar">
-    <button class="primary" onclick="login()">Entrar</button>
+    <button id="loginBtn" class="primary" type="button">Entrar</button>
     <button class="secondary" onclick="showRegister()">Criar cadastro</button>
     <button class="secondary" onclick="resetPassword()">Esqueci minha senha</button>
   </div>
@@ -169,6 +169,8 @@ function el(id){return document.getElementById(id)}
 window.showLogin=()=>{el("loginView").classList.remove("hidden");el("registerView").classList.add("hidden")};
 window.showRegister=()=>{el("loginView").classList.add("hidden");el("registerView").classList.remove("hidden")};
 window.login=async()=>{try{if(!firebaseConfigured)throw Error("Firebase ainda não configurado.");await signInWithEmailAndPassword(auth,el("loginEmail").value.trim(),el("loginPassword").value);setStatus("🟢 Dados salvos na nuvem")}catch(e){el("loginMsg").textContent=e.message}};
+el("loginBtn").addEventListener("click",window.login);
+el("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")window.login();});
 window.register=async()=>{
  const m=el("regMatricula").value.trim(),n=el("regNome").value.trim(),e=el("regEmail").value.trim(),p=el("regPassword").value,p2=el("regPassword2").value;
  if(!m||!n||!e||!p)return el("regMsg").textContent="Preencha todos os campos.";
@@ -209,6 +211,7 @@ window.openAdmin=async()=>{
  await renderAdmins();
 };
 window.closeAdmin=()=>el("adminModal").classList.add("hidden");
+window.addEventListener("unhandledrejection",e=>{const m=e?.reason?.message;if(m)el("loginMsg").textContent="Erro: "+m;});
 
 async function renderAdmins(){
  const box=el("adminList");
