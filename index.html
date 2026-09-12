@@ -10,7 +10,7 @@
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f5f7;color:#222}
 header{background:#b00020;color:#fff;padding:16px;text-align:center}header h1{margin:0;font-size:22px}
 main{max-width:1200px;margin:auto;padding:12px}.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px #0001}
-input,select,button{font:inherit}input,select{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px;background:#fff}
+input,select,button{font:inherit}input,select{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px;background:#fff}.carro-select{min-width:90px;width:90px;color:#222;background:#fff;text-align:center}
 button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer}.primary{background:#b00020;color:#fff}.secondary{background:#eee}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.field label{display:block;font-weight:bold;font-size:13px;margin-bottom:5px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.status{padding:8px;border-radius:8px;font-weight:bold;background:#eee}
@@ -73,7 +73,7 @@ footer{text-align:center;color:#666;padding:18px;font-size:13px}
   </div>
   <div class="card tablewrap">
     <table><thead><tr>
-      <th>Carro</th><th>Placa</th><th>Tipo de Veículo</th><th>Modelo/Marca</th><th>Data</th><th>Km Atual</th>
+      <th>Nº Carro</th><th>Placa</th><th>Tipo de Veículo</th><th>Modelo/Marca</th><th>Data</th><th>Km Atual</th>
       <th>Tipo de Manutenção</th><th>Descrição</th><th>Oficina/Responsável</th><th>Status</th><th>Próxima Manutenção</th>
       <th>Próxima Troca de Óleo (km)</th><th>Ação</th>
     </tr></thead><tbody id="tbody"></tbody></table>
@@ -152,6 +152,28 @@ window.addRow=async()=>{
  if(firebaseConfigured)rows.push(r);render()
 };
 function select(v,opts,field,id){return `<select data-id="${id}" data-field="${field}" onchange="editField(this)">${opts.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")}</select>`}
+function selectCarro(v,id){
+  const atual=String(v??"").replace(/^Carro\\s*/i,"").trim();
+  const n=Number(atual);
+  return `<select class="carro-select" data-id="${id}" data-field="carro" onchange="editCarro(this)">
+    ${Array.from({length:30},(_,i)=>{const num=String(i+1);return `<option value="${num}" ${n===i+1?"selected":""}>${num}</option>`}).join("")}
+  </select>`;
+}
+window.editCarro=async(x)=>{
+  const r=rows.find(a=>a.id===x.dataset.id); if(!r)return;
+  r.carro="Carro "+x.value;
+  if(firebaseConfigured){
+    setStatus("🟡 Salvando...");
+    try{
+      const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+      await updateDoc(doc(db,"manutencoes",r.id),{carro:r.carro});
+      setStatus("🟢 Dados salvos na nuvem");
+    }catch(e){console.error(e);setStatus("🔴 Erro ao salvar — tente novamente");}
+  }else{
+    localStorage.setItem(LS,JSON.stringify(rows));
+    setStatus("🟢 Dados salvos");
+  }
+};
 function input(v,field,id,type="text"){return `<input type="${type}" value="${String(v??"").replace(/"/g,"&quot;")}" data-id="${id}" data-field="${field}" onchange="editField(this)">`}
 window.editField=async(x)=>{
  const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;r[x.dataset.field]=x.value;
@@ -170,7 +192,7 @@ function oil(r){
 }
 function render(updateCount=true){
  el("tbody").innerHTML=rows.map(r=>`<tr>
-<td>${select(r.carro,Array.from({length:30},(_,i)=>"Carro "+(i+1)),"carro",r.id)}</td>
+<td>${selectCarro(r.carro,r.id)}</td>
 <td>${input(r.placa,"placa",r.id)}</td>
 <td>${select(r.tipoVeiculo,["Carro","Caminhonete","Caminhão","Digger"],"tipoVeiculo",r.id)}</td>
 <td>${input(r.modelo,"modelo",r.id)}</td><td>${input(r.data,"data",r.id,"date")}</td><td>${input(r.kmAtual,"kmAtual",r.id,"number")}</td>
