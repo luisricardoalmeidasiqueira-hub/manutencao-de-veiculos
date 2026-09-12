@@ -10,17 +10,17 @@
 *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f5f7;color:#222}
 header{background:#b00020;color:#fff;padding:16px;text-align:center}header h1{margin:0;font-size:22px}
 main{max-width:1200px;margin:auto;padding:12px}.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px #0001}
-input,select,button{font:inherit}input,select{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px;background:#fff}.carro-select{min-width:90px;width:90px;color:#222;background:#fff;text-align:center}
+input,select,button{font:inherit}input,select{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px;background:#fff}
 button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer}.primary{background:#b00020;color:#fff}.secondary{background:#eee}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.field label{display:block;font-weight:bold;font-size:13px;margin-bottom:5px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.status{padding:8px;border-radius:8px;font-weight:bold;background:#eee}
 .banner{background:#b00020;color:white;border-radius:10px;padding:12px;text-align:center;font-weight:bold;animation:blink 1.4s infinite}.banner button{float:right;background:#fff;color:#b00020;padding:4px 7px}
 @keyframes blink{50%{opacity:.72}} .msg{min-height:50px;display:flex;align-items:center;justify-content:center}
-.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1250px}th,td{border:1px solid #ddd;padding:6px;vertical-align:middle}th{background:#eee}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1450px}th,td{border:1px solid #ddd;padding:6px;vertical-align:middle}th{background:#eee}th:first-child,td:first-child{min-width:125px;width:125px}.car-select{min-width:115px;width:115px;text-align:center}.plate-col{min-width:155px;width:155px}.km-col{min-width:155px;width:155px}
 .oil{font-weight:bold;white-space:nowrap}.oil.normal{color:#17833b}.oil.attention{color:#b05a00}.oil.overdue{color:#b00020}
 .login{max-width:430px;margin:8vh auto}.hidden{display:none!important}.small{font-size:12px;color:#666}.right{text-align:right}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:15px;z-index:10}.modalbox{background:#fff;border-radius:12px;padding:18px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
-.message-edit{margin-bottom:10px}.save-status{font-weight:bold}
+.message-edit{margin-bottom:10px}.save-status{font-weight:bold}.desc-modal textarea{width:100%;min-height:150px;padding:12px;border:1px solid #bbb;border-radius:8px;font:inherit}.desc-title{font-weight:bold;margin-bottom:8px}
 footer{text-align:center;color:#666;padding:18px;font-size:13px}
 @media(max-width:600px){main{padding:8px}.grid{grid-template-columns:1fr 1fr}.grid .wide{grid-column:1/-1}}
 </style>
@@ -73,14 +73,24 @@ footer{text-align:center;color:#666;padding:18px;font-size:13px}
   </div>
   <div class="card tablewrap">
     <table><thead><tr>
-      <th>Nº Carro</th><th>Placa</th><th>Tipo de Veículo</th><th>Modelo/Marca</th><th>Data</th><th>Km Atual</th>
-      <th>Tipo de Manutenção</th><th>Descrição</th><th>Oficina/Responsável</th><th>Status</th><th>Próxima Manutenção</th>
+      <th>Carro</th><th class="plate-col">Placa</th><th>Tipo de Veículo</th><th>Modelo/Marca</th><th>Data</th><th class="km-col">Km Atual</th>
+      <th>Tipo de Manutenção</th><th>Oficina/Responsável</th><th>Status</th><th>Próxima Manutenção</th>
       <th>Próxima Troca de Óleo (km)</th><th>Ação</th>
     </tr></thead><tbody id="tbody"></tbody></table>
   </div>
-  <footer>Criado por Luis Ricardo e Rodrigo</footer>
+  <footer>Criado por Luis Ricardo e Rodrigo<br><span class="small">Versão corrigida do aplicativo</span></footer>
 </main>
 </div>
+
+<div id="descModal" class="modal hidden"><div class="modalbox desc-modal">
+  <h3>📝 Descrição da manutenção</h3>
+  <div id="descTitle" class="desc-title"></div>
+  <textarea id="descText" placeholder="Descreva o serviço, problema encontrado ou observação..."></textarea>
+  <div class="toolbar">
+    <button class="primary" onclick="saveDescription()">Salvar descrição</button>
+    <button class="secondary" onclick="closeDescription()">Cancelar</button>
+  </div>
+</div></div>
 
 <div id="msgModal" class="modal hidden"><div class="modalbox">
 <h3>Editar mensagens de segurança</h3>
@@ -111,7 +121,7 @@ const defaultMessages=[
 "🚗 Cuidar do veículo é cuidar de quem está dentro dele. Segurança, responsabilidade e manutenção em dia fazem parte do nosso compromisso com a empresa, com nossos colegas e com nossas famílias."
 ];
 let messages=JSON.parse(localStorage.getItem(MSG)||"null")||defaultMessages;
-let msgIndex=0;
+let msgIndex=0;let descriptionRowId=null;
 
 if(firebaseConfigured){
  const app=initializeApp(firebaseConfig); auth=getAuth(app); db=getFirestore(app);
@@ -151,39 +161,52 @@ window.addRow=async()=>{
  else {r.id=crypto.randomUUID();rows.push(r);localStorage.setItem(LS,JSON.stringify(rows))}
  if(firebaseConfigured)rows.push(r);render()
 };
-function select(v,opts,field,id){return `<select data-id="${id}" data-field="${field}" onchange="editField(this)">${opts.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")}</select>`}
-function selectCarro(v,id){
-  const atual=String(v??"").replace(/^Carro\\s*/i,"").trim();
-  const n=Number(atual);
-  return `<select class="carro-select" data-id="${id}" data-field="carro" onchange="editCarro(this)">
-    ${Array.from({length:30},(_,i)=>{const num=String(i+1);return `<option value="${num}" ${n===i+1?"selected":""}>${num}</option>`}).join("")}
-  </select>`;
-}
-window.editCarro=async(x)=>{
-  const r=rows.find(a=>a.id===x.dataset.id); if(!r)return;
-  r.carro="Carro "+x.value;
-  if(firebaseConfigured){
-    setStatus("🟡 Salvando...");
-    try{
-      const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-      await updateDoc(doc(db,"manutencoes",r.id),{carro:r.carro});
-      setStatus("🟢 Dados salvos na nuvem");
-    }catch(e){console.error(e);setStatus("🔴 Erro ao salvar — tente novamente");}
-  }else{
-    localStorage.setItem(LS,JSON.stringify(rows));
-    setStatus("🟢 Dados salvos");
-  }
-};
+function select(v,opts,field,id){const cls=field==="carro"?"car-select":"";return `<select class="${cls}" data-id="${id}" data-field="${field}" onchange="editField(this)">${opts.map(x=>`<option value="${x}" ${String(x)===String(v)?"selected":""}>${x}</option>`).join("")}</select>`}
 function input(v,field,id,type="text"){return `<input type="${type}" value="${String(v??"").replace(/"/g,"&quot;")}" data-id="${id}" data-field="${field}" onchange="editField(this)">`}
 window.editField=async(x)=>{
- const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;r[x.dataset.field]=x.value;
- if(firebaseConfigured){setStatus("🟡 Salvando...");try{
-   const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-   await updateDoc(doc(db,"manutencoes",r.id),{[x.dataset.field]:x.value});setStatus("🟢 Dados salvos na nuvem")
- }catch(e){setStatus("🔴 Erro ao salvar — tente novamente")}
+ const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;
+ const field=x.dataset.field;
+ r[field]=x.value;
+
+ if(firebaseConfigured){
+   setStatus("🟡 Salvando...");try{
+     const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+     await updateDoc(doc(db,"manutencoes",r.id),{[field]:x.value});
+     setStatus("🟢 Dados salvos na nuvem")
+   }catch(e){setStatus("🔴 Erro ao salvar — tente novamente")}
  }else localStorage.setItem(LS,JSON.stringify(rows));
- render(false)
+
+ render(false);
+
+ if(field==="tipoManutencao"){
+   openDescription(r.id);
+ }
 };
+window.openDescription=(id)=>{
+ const r=rows.find(a=>a.id===id);if(!r)return;
+ descriptionRowId=id;
+ el("descTitle").textContent="Manutenção: "+r.tipoManutencao;
+ el("descText").value=r.descricao||"";
+ el("descModal").classList.remove("hidden");
+ setTimeout(()=>el("descText").focus(),100);
+};
+window.closeDescription=()=>{descriptionRowId=null;el("descModal").classList.add("hidden")};
+window.saveDescription=async()=>{
+ if(!descriptionRowId)return;
+ const r=rows.find(a=>a.id===descriptionRowId);if(!r)return;
+ r.descricao=el("descText").value.trim();
+ if(firebaseConfigured){
+   setStatus("🟡 Salvando...");
+   try{
+     const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+     await updateDoc(doc(db,"manutencoes",r.id),{descricao:r.descricao});
+     setStatus("🟢 Dados salvos na nuvem");
+   }catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}
+ }else localStorage.setItem(LS,JSON.stringify(rows));
+ closeDescription();
+ render(false);
+};
+
 function oil(r){
  const k=Number(r.kmAtual),n=Number(r.proximaOleoKm);if(!Number.isFinite(k)||!Number.isFinite(n)||!n)return `<span class="oil">⚪ Informe o km</span>`;
  const rem=n-k;if(rem<=0)return `<span class="oil overdue">🔴 TROCA DE ÓLEO VENCIDA</span>`;
@@ -192,12 +215,12 @@ function oil(r){
 }
 function render(updateCount=true){
  el("tbody").innerHTML=rows.map(r=>`<tr>
-<td>${selectCarro(r.carro,r.id)}</td>
-<td>${input(r.placa,"placa",r.id)}</td>
+<td>${select(r.carro,Array.from({length:30},(_,i)=>"Carro "+(i+1)),"carro",r.id)}</td>
+<td class="plate-col">${input(r.placa,"placa",r.id)}</td>
 <td>${select(r.tipoVeiculo,["Carro","Caminhonete","Caminhão","Digger"],"tipoVeiculo",r.id)}</td>
-<td>${input(r.modelo,"modelo",r.id)}</td><td>${input(r.data,"data",r.id,"date")}</td><td>${input(r.kmAtual,"kmAtual",r.id,"number")}</td>
+<td>${input(r.modelo,"modelo",r.id)}</td><td>${input(r.data,"data",r.id,"date")}</td><td class="km-col">${input(r.kmAtual,"kmAtual",r.id,"number")}</td>
 <td>${select(r.tipoManutencao,["Troca de óleo","Troca de pneu","Alinhamento e Balanceamento","Revisão geral","Freios","Bateria","Outras manutenções"],"tipoManutencao",r.id)}</td>
-<td>${input(r.descricao,"descricao",r.id)}</td><td>${input(r.oficina,"oficina",r.id)}</td>
+<td>${input(r.oficina,"oficina",r.id)}</td>
 <td>${select(r.status,["Pendente","Em andamento","Concluída"],"status",r.id)}</td><td>${input(r.proximaManutencao,"proximaManutencao",r.id,"date")}</td>
 <td>${input(r.proximaOleoKm,"proximaOleoKm",r.id,"number")}<br>${oil(r)}</td>
 <td><button onclick="removeRow('${r.id}')">🗑️</button></td></tr>`).join("");
