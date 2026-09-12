@@ -169,7 +169,20 @@ function input(v,field,id,type="text"){return `<input type="${type}" value="${St
 window.changeMaintenance=async(x)=>{
  const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;
  const novo=x.value;
- await editField(x);
+ r.descricao="";
+ if(firebaseConfigured){
+   setStatus("🟡 Salvando...");
+   try{
+     const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+     await updateDoc(doc(db,"manutencoes",r.id),{tipoManutencao:novo,descricao:""});
+     setStatus("🟢 Dados salvos na nuvem");
+   }catch(e){
+     setStatus("🔴 Erro ao salvar — tente novamente");
+   }
+ }else{
+   localStorage.setItem(LS,JSON.stringify(rows));
+ }
+ render(false);
  setTimeout(()=>openDescription(r.id),150);
 };
 window.editField=async(x)=>{
