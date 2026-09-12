@@ -394,9 +394,24 @@ function render(updateCount=true){
 <td>${input(r.oficina,"oficina",r.id)}</td>
 <td>${select(r.status,["Pendente","Em andamento","Concluída"],"status",r.id)}</td><td>${input(r.proximaManutencao,"proximaManutencao",r.id,"date")}</td>
 <td>${input(r.proximaOleoKm,"proximaOleoKm",r.id,"number")}<br>${oil(r)}</td>
-<td><button onclick="removeRow('${r.id}')">🗑️</button></td></tr>`).join("");
+<td><button title="Salvar informações" onclick="saveRow('${r.id}')">💾</button> <button title="Excluir registro" onclick="removeRow('${r.id}')">🗑️</button></td></tr>`).join("");
  if(updateCount)el("recordCount").textContent=rows.length
 }
+window.saveRow=async(id)=>{
+ const r=rows.find(x=>x.id===id);
+ if(!r)return;
+ if(firebaseConfigured){
+   setStatus("🟡 Salvando...");
+   try{
+     const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+     const {id:_,...data}=r;
+     await updateDoc(doc(db,"manutencoes",id),data);
+     setStatus("🟢 Dados salvos na nuvem");
+   }catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}
+ }
+ localStorage.setItem(LS,JSON.stringify(rows));
+ render(false);
+};
 window.removeRow=async(id)=>{if(!confirm("Excluir este registro?"))return;const r=rows.find(x=>x.id===id);if(firebaseConfigured){setStatus("🟡 Salvando...");try{await deleteDoc(doc(db,"manutencoes",id));setStatus("🟢 Dados salvos na nuvem")}catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}}rows=rows.filter(x=>x.id!==id);localStorage.setItem(LS,JSON.stringify(rows));render()};
 window.exportCSV=()=>{
  if(!isAdminUser)return alert("Acesso restrito ao administrador.");
