@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#b00020">
+<link rel="manifest" href="manifest.json">
+<title>Manutenção de Veículos</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f5f7;color:#222}
+header{background:#b00020;color:#fff;padding:16px;text-align:center}header h1{margin:0;font-size:22px}
+main{max-width:1200px;margin:auto;padding:12px}.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px #0001}
+input,select,button{font:inherit}input,select{width:100%;padding:10px;border:1px solid #bbb;border-radius:8px;background:#fff}
+button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer}.primary{background:#b00020;color:#fff}.secondary{background:#eee}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}.field label{display:block;font-weight:bold;font-size:13px;margin-bottom:5px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.status{padding:8px;border-radius:8px;font-weight:bold;background:#eee}
+.banner{background:#b00020;color:white;border-radius:10px;padding:12px;text-align:center;font-weight:bold;animation:blink 1.4s infinite}.banner button{float:right;background:#fff;color:#b00020;padding:4px 7px}
+@keyframes blink{50%{opacity:.72}} .msg{min-height:50px;display:flex;align-items:center;justify-content:center}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:1250px}th,td{border:1px solid #ddd;padding:6px;vertical-align:middle}th{background:#eee}
+.oil{font-weight:bold;white-space:nowrap}.oil.normal{color:#17833b}.oil.attention{color:#b05a00}.oil.overdue{color:#b00020}
+.login{max-width:430px;margin:8vh auto}.hidden{display:none!important}.small{font-size:12px;color:#666}.right{text-align:right}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:15px;z-index:10}.modalbox{background:#fff;border-radius:12px;padding:18px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
+.message-edit{margin-bottom:10px}.save-status{font-weight:bold}
+footer{text-align:center;color:#666;padding:18px;font-size:13px}
+@media(max-width:600px){main{padding:8px}.grid{grid-template-columns:1fr 1fr}.grid .wide{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div id="loginView" class="login card">
+  <h2>🔐 Acesso</h2>
+  <p class="small">Entre com seu e-mail e senha ou faça seu primeiro cadastro.</p>
+  <div class="field"><label>E-mail</label><input id="loginEmail" type="email" autocomplete="email"></div><br>
+  <div class="field"><label>Senha</label><input id="loginPassword" type="password" autocomplete="current-password"></div>
+  <div class="toolbar">
+    <button class="primary" onclick="login()">Entrar</button>
+    <button class="secondary" onclick="showRegister()">Criar cadastro</button>
+    <button class="secondary" onclick="resetPassword()">Esqueci minha senha</button>
+  </div>
+  <p id="loginMsg" class="small"></p>
+</div>
+
+<div id="registerView" class="login card hidden">
+  <h2>📝 Criar cadastro</h2>
+  <div class="grid">
+    <div class="field"><label>Matrícula</label><input id="regMatricula" maxlength="40"></div>
+    <div class="field"><label>Nome</label><input id="regNome" maxlength="100"></div>
+    <div class="field wide"><label>E-mail pessoal ou corporativo</label><input id="regEmail" type="email" autocomplete="email"></div>
+    <div class="field"><label>Senha</label><input id="regPassword" type="password" autocomplete="new-password"></div>
+    <div class="field"><label>Confirmar senha</label><input id="regPassword2" type="password" autocomplete="new-password"></div>
+  </div>
+  <div class="toolbar"><button class="primary" onclick="register()">Cadastrar</button><button class="secondary" onclick="showLogin()">Voltar</button></div>
+  <p class="small">A senha é criada pelo próprio usuário. Para recuperar o acesso, o e-mail cadastrado será usado.</p>
+  <p id="regMsg" class="small"></p>
+</div>
+
+<div id="appView" class="hidden">
+<header><h1>🚗 Manutenção de Veículos</h1></header>
+<main>
+  <div class="banner"><button onclick="openMessages()">✏️</button><div id="safetyMsg" class="msg"></div></div>
+  <div class="card">
+    <div class="grid">
+      <div><b>Usuário</b><div id="userInfo" class="small"></div></div>
+      <div><b>Firebase</b><div id="cloudStatus" class="save-status">🟡 Verificando...</div></div>
+      <div><b>Registros</b><div id="recordCount">0</div></div>
+    </div>
+    <div class="toolbar">
+      <button class="primary" onclick="addRow()">➕ Adicionar manutenção</button>
+      <button class="secondary" onclick="exportCSV()">📤 Exportar histórico</button>
+      <button class="secondary" onclick="archiveOld()">📦 Arquivar registros antigos</button>
+      <button class="secondary" onclick="openMessages()">💬 Mensagens de segurança</button>
+      <button class="secondary" onclick="logout()">Sair</button>
+    </div>
+  </div>
+  <div class="card tablewrap">
+    <table><thead><tr>
+      <th>Carro</th><th>Placa</th><th>Tipo de Veículo</th><th>Modelo/Marca</th><th>Data</th><th>Km Atual</th>
+      <th>Tipo de Manutenção</th><th>Descrição</th><th>Oficina/Responsável</th><th>Status</th><th>Próxima Manutenção</th>
+      <th>Próxima Troca de Óleo (km)</th><th>Ação</th>
+    </tr></thead><tbody id="tbody"></tbody></table>
+  </div>
+  <footer>Criado por Luis Ricardo e Rodrigo</footer>
+</main>
+</div>
+
+<div id="msgModal" class="modal hidden"><div class="modalbox">
+<h3>Editar mensagens de segurança</h3>
+<div id="messageFields"></div>
+<div class="toolbar"><button class="primary" onclick="saveMessages()">Salvar mensagens</button><button class="secondary" onclick="closeMessages()">Cancelar</button></div>
+</div></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,sendPasswordResetEmail,signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore,collection,addDoc,getDocs,deleteDoc,doc,query,orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBYResd_Xp5pHlqKrm1Mzl2Gs4fhgEjkYg",
+  authDomain: "manutencao-de-veiculos-2c288.firebaseapp.com",
+  projectId: "manutencao-de-veiculos-2c288",
+  storageBucket: "manutencao-de-veiculos-2c288.firebasestorage.app",
+  messagingSenderId: "681499055095",
+  appId: "1:681499055095:web:1e96cbd39972a3986c54f2"
+};
+const firebaseConfigured=!Object.values(firebaseConfig).some(v=>String(v).includes("SUA_")||String(v).includes("SEU_"));
+let auth=null,db=null,user=null,rows=[];
+const LS="manutencao_veiculos_rows", MSG="manutencao_veiculos_msgs";
+const defaultMessages=[
+"⚠️ Segurança começa antes de colocar o veículo em movimento. Manter o veículo em boas condições é responsabilidade de todos e protege o nosso maior patrimônio: as pessoas.",
+"🛑 Um veículo em condições inadequadas coloca vidas em risco. Faça a manutenção preventiva, cuide do patrimônio da empresa e ajude a garantir que todos voltem para casa em segurança.",
+"❤️ Por trás de cada colaborador existe uma família esperando por ele. Nenhuma manutenção deve ser adiada quando a segurança das pessoas está em jogo.",
+"🚗 Cuidar do veículo é cuidar de quem está dentro dele. Segurança, responsabilidade e manutenção em dia fazem parte do nosso compromisso com a empresa, com nossos colegas e com nossas famílias."
+];
+let messages=JSON.parse(localStorage.getItem(MSG)||"null")||defaultMessages;
+let msgIndex=0;
+
+if(firebaseConfigured){
+ const app=initializeApp(firebaseConfig); auth=getAuth(app); db=getFirestore(app);
+ onAuthStateChanged(auth, async u=>{user=u;if(u){showApp();await loadRows();}else showLogin();});
+}else{
+ document.getElementById("cloudStatus").textContent="🟠 Firebase ainda não configurado";
+}
+function el(id){return document.getElementById(id)}
+window.showLogin=()=>{el("loginView").classList.remove("hidden");el("registerView").classList.add("hidden")};
+window.showRegister=()=>{el("loginView").classList.add("hidden");el("registerView").classList.remove("hidden")};
+window.login=async()=>{try{if(!firebaseConfigured)throw Error("Firebase ainda não configurado.");await signInWithEmailAndPassword(auth,el("loginEmail").value.trim(),el("loginPassword").value);setStatus("🟢 Dados salvos na nuvem")}catch(e){el("loginMsg").textContent=e.message}};
+window.register=async()=>{
+ const m=el("regMatricula").value.trim(),n=el("regNome").value.trim(),e=el("regEmail").value.trim(),p=el("regPassword").value,p2=el("regPassword2").value;
+ if(!m||!n||!e||!p)return el("regMsg").textContent="Preencha todos os campos.";
+ if(p!==p2)return el("regMsg").textContent="As senhas não conferem.";
+ try{
+   if(!firebaseConfigured)throw Error("Firebase ainda não configurado.");
+   const cred=await createUserWithEmailAndPassword(auth,e,p);
+   await addDoc(collection(db,"usuarios"),{uid:cred.user.uid,matricula:m,nome:n,email:e,criadoEm:new Date().toISOString()});
+   el("regMsg").textContent="Cadastro realizado.";
+ }catch(x){el("regMsg").textContent=x.message}
+};
+window.resetPassword=async()=>{
+ const e=el("loginEmail").value.trim();if(!e)return el("loginMsg").textContent="Digite seu e-mail primeiro.";
+ try{await sendPasswordResetEmail(auth,e);el("loginMsg").textContent="Enviamos o processo de recuperação para seu e-mail."}catch(x){el("loginMsg").textContent=x.message}
+};
+window.logout=()=>firebaseConfigured&&signOut(auth);
+function showApp(){el("loginView").classList.add("hidden");el("registerView").classList.add("hidden");el("appView").classList.remove("hidden");el("userInfo").textContent=user?.email||""}
+function setStatus(t){el("cloudStatus").textContent=t}
+async function loadRows(){
+ setStatus("🟡 Carregando...");
+ try{const snap=await getDocs(collection(db,"manutencoes"));rows=snap.docs.map(d=>({id:d.id,...d.data()}));setStatus("🟢 Dados salvos na nuvem");render()}catch(e){setStatus("🔴 Erro ao carregar — tente novamente")}
+}
+window.addRow=async()=>{
+ const r={carro:"Carro 1",placa:"",tipoVeiculo:"Carro",modelo:"",data:new Date().toISOString().slice(0,10),kmAtual:"",tipoManutencao:"Troca de óleo",descricao:"",oficina:"",status:"Pendente",proximaManutencao:"",proximaOleoKm:""};
+ if(firebaseConfigured){setStatus("🟡 Salvando...");try{const d=await addDoc(collection(db,"manutencoes"),r);r.id=d.id;setStatus("🟢 Dados salvos na nuvem")}catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}}
+ else {r.id=crypto.randomUUID();rows.push(r);localStorage.setItem(LS,JSON.stringify(rows))}
+ if(firebaseConfigured)rows.push(r);render()
+};
+function select(v,opts,field,id){return `<select data-id="${id}" data-field="${field}" onchange="editField(this)">${opts.map(x=>`<option ${x===v?"selected":""}>${x}</option>`).join("")}</select>`}
+function input(v,field,id,type="text"){return `<input type="${type}" value="${String(v??"").replace(/"/g,"&quot;")}" data-id="${id}" data-field="${field}" onchange="editField(this)">`}
+window.editField=async(x)=>{
+ const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;r[x.dataset.field]=x.value;
+ if(firebaseConfigured){setStatus("🟡 Salvando...");try{
+   const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+   await updateDoc(doc(db,"manutencoes",r.id),{[x.dataset.field]:x.value});setStatus("🟢 Dados salvos na nuvem")
+ }catch(e){setStatus("🔴 Erro ao salvar — tente novamente")}
+ }else localStorage.setItem(LS,JSON.stringify(rows));
+ render(false)
+};
+function oil(r){
+ const k=Number(r.kmAtual),n=Number(r.proximaOleoKm);if(!Number.isFinite(k)||!Number.isFinite(n)||!n)return `<span class="oil">⚪ Informe o km</span>`;
+ const rem=n-k;if(rem<=0)return `<span class="oil overdue">🔴 TROCA DE ÓLEO VENCIDA</span>`;
+ if(rem<=2000)return `<span class="oil attention">🟠 PRÓXIMO DA TROCA — FALTAM ${rem.toLocaleString("pt-BR")} KM</span>`;
+ return `<span class="oil normal">🟢 NORMAL — FALTAM ${rem.toLocaleString("pt-BR")} KM</span>`;
+}
+function render(updateCount=true){
+ el("tbody").innerHTML=rows.map(r=>`<tr>
+<td>${select(r.carro,Array.from({length:30},(_,i)=>"Carro "+(i+1)),"carro",r.id)}</td>
+<td>${input(r.placa,"placa",r.id)}</td>
+<td>${select(r.tipoVeiculo,["Carro","Caminhonete","Caminhão","Digger"],"tipoVeiculo",r.id)}</td>
+<td>${input(r.modelo,"modelo",r.id)}</td><td>${input(r.data,"data",r.id,"date")}</td><td>${input(r.kmAtual,"kmAtual",r.id,"number")}</td>
+<td>${select(r.tipoManutencao,["Troca de óleo","Troca de pneu","Alinhamento e Balanceamento","Revisão geral","Freios","Bateria","Outras manutenções"],"tipoManutencao",r.id)}</td>
+<td>${input(r.descricao,"descricao",r.id)}</td><td>${input(r.oficina,"oficina",r.id)}</td>
+<td>${select(r.status,["Pendente","Em andamento","Concluída"],"status",r.id)}</td><td>${input(r.proximaManutencao,"proximaManutencao",r.id,"date")}</td>
+<td>${input(r.proximaOleoKm,"proximaOleoKm",r.id,"number")}<br>${oil(r)}</td>
+<td><button onclick="removeRow('${r.id}')">🗑️</button></td></tr>`).join("");
+ if(updateCount)el("recordCount").textContent=rows.length
+}
+window.removeRow=async(id)=>{if(!confirm("Excluir este registro?"))return;const r=rows.find(x=>x.id===id);if(firebaseConfigured){setStatus("🟡 Salvando...");try{await deleteDoc(doc(db,"manutencoes",id));setStatus("🟢 Dados salvos na nuvem")}catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}}rows=rows.filter(x=>x.id!==id);localStorage.setItem(LS,JSON.stringify(rows));render()};
+window.exportCSV=()=>{
+ const cols=["carro","placa","tipoVeiculo","modelo","data","kmAtual","tipoManutencao","descricao","oficina","status","proximaManutencao","proximaOleoKm"];
+ const csv=[cols.join(";"),...rows.map(r=>cols.map(c=>`"${String(r[c]??"").replace(/"/g,'""')}"`).join(";"))].join("\n");
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download="historico_manutencao.csv";a.click();
+};
+window.archiveOld=async()=>{
+ const dates=rows.map(r=>r.data).filter(Boolean).sort();if(!dates.length)return alert("Não há registros com data.");
+ const cutoff=prompt("Arquivar registros anteriores a qual data? (AAAA-MM-DD)");
+ if(!cutoff)return;if(!confirm("Primeiro exporte o histórico para garantir uma cópia. Deseja continuar com o arquivamento?"))return;
+ const old=rows.filter(r=>r.data&&r.data<cutoff);if(!old.length)return alert("Nenhum registro encontrado antes dessa data.");
+ if(firebaseConfigured){setStatus("🟡 Salvando...");try{for(const r of old)await deleteDoc(doc(db,"manutencoes",r.id));setStatus("🟢 Dados salvos na nuvem")}catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}}
+ rows=rows.filter(r=>!old.includes(r));localStorage.setItem(LS,JSON.stringify(rows));render();alert(old.length+" registro(s) arquivado(s).");
+};
+window.openMessages=()=>{el("messageFields").innerHTML=messages.map((m,i)=>`<div class="message-edit"><label>Mensagem ${i+1}</label><textarea id="m${i}" style="width:100%;min-height:90px;padding:8px">${m}</textarea></div>`).join("");el("msgModal").classList.remove("hidden")};
+window.closeMessages=()=>el("msgModal").classList.add("hidden");
+window.saveMessages=()=>{messages=messages.map((_,i)=>el("m"+i).value.trim());localStorage.setItem(MSG,JSON.stringify(messages));closeMessages();showMessage()};
+function showMessage(){el("safetyMsg").style.opacity=0;setTimeout(()=>{el("safetyMsg").textContent=messages[msgIndex];el("safetyMsg").style.opacity=1},350);msgIndex=(msgIndex+1)%messages.length}
+showMessage();setInterval(showMessage,5000);
+if(!firebaseConfigured){rows=JSON.parse(localStorage.getItem(LS)||"[]");render()}
+</script>
+<script>
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body></html>
