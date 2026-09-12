@@ -164,26 +164,37 @@ window.addRow=async()=>{
  else {r.id=crypto.randomUUID();rows.push(r);localStorage.setItem(LS,JSON.stringify(rows))}
  if(firebaseConfigured)rows.push(r);render()
 };
-function select(v,opts,field,id){const cls=field==="carro"?"car-select":"";const handler=field==="tipoManutencao"?"changeMaintenance(this)":"editField(this)";return `<select class="${cls}" data-id="${id}" data-field="${field}" onchange="${handler}">${opts.map(x=>`<option value="${x}" ${String(x)===String(v)?"selected":""}>${x}</option>`).join("")}</select>`}
+function select(v,opts,field,id){const cls=field==="carro"?"car-select":"";return `<select class="${cls}" data-id="${id}" data-field="${field}" onchange="editField(this)">${opts.map(x=>`<option value="${x}" ${String(x)===String(v)?"selected":""}>${x}</option>`).join("")}</select>`}
 function input(v,field,id,type="text"){return `<input type="${type}" value="${String(v??"").replace(/"/g,"&quot;")}" data-id="${id}" data-field="${field}" onchange="editField(this)">`}
 window.editField=async(x)=>{
  const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;
  const field=x.dataset.field;
+ const oldValue=r[field];
  r[field]=x.value;
 
  if(field==="tipoManutencao"){
-   // Cada troca de tipo começa com uma descrição própria e vazia.
-   r.descricao="";
+   const oldType=String(oldValue||"");
+   const newType=String(x.value||"");
+   r.descricoes=r.descricoes||{};
+   // Migrate any legacy single description to the previous maintenance type.
+   if(oldType && r.descricao && !r.descricoes[oldType]) r.descricoes[oldType]=r.descricao;
+   r.descricao=r.descricoes[newType]||"";
+
    if(firebaseConfigured){
      setStatus("🟡 Salvando...");
      try{
        const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-       await updateDoc(doc(db,"manutencoes",r.id),{tipoManutencao:x.value,descricao:""});
+       await updateDoc(doc(db,"manutencoes",r.id),{
+         tipoManutencao:newType,
+         descricao:r.descricao,
+         descricoes:r.descricoes
+       });
        setStatus("🟢 Dados salvos na nuvem");
      }catch(e){setStatus("🔴 Erro ao salvar — tente novamente")}
    }else localStorage.setItem(LS,JSON.stringify(rows));
+
    render(false);
-   setTimeout(()=>openDescription(r.id),150);
+   setTimeout(()=>openDescription(r.id),120);
    return;
  }
 
@@ -200,8 +211,12 @@ window.editField=async(x)=>{
 window.openDescription=(id)=>{
  const r=rows.find(a=>a.id===id);if(!r)return;
  descriptionRowId=id;
+ r.descricoes=r.descricoes||{};
+ if(r.tipoManutencao && r.descricao && !r.descricoes[r.tipoManutencao]) r.descricoes[r.tipoManutencao]=r.descricao;
+ const atual=r.descricoes[r.tipoManutencao]||"";
+ r.descricao=atual;
  el("descTitle").textContent=r.tipoManutencao==="Outras manutenções"?"Outras manutenções — descreva o que foi feito":"Manutenção: "+r.tipoManutencao;
- el("descText").value=r.descricao||"";
+ el("descText").value=atual;
  el("descModal").classList.remove("hidden");
  setTimeout(()=>el("descText").focus(),100);
 };
@@ -209,15 +224,22 @@ window.closeDescription=()=>{descriptionRowId=null;el("descModal").classList.add
 window.saveDescription=async()=>{
  if(!descriptionRowId)return;
  const r=rows.find(a=>a.id===descriptionRowId);if(!r)return;
- r.descricao=el("descText").value.trim();
+ r.descricoes=r.descricoes||{};
+ r.descricoes[r.tipoManutencao]=el("descText").value.trim();
+ r.descricao=r.descricoes[r.tipoManutencao];
+
  if(firebaseConfigured){
    setStatus("🟡 Salvando...");
    try{
      const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-     await updateDoc(doc(db,"manutencoes",r.id),{descricao:r.descricao});
+     await updateDoc(doc(db,"manutencoes",r.id),{
+       descricao:r.descricao,
+       descricoes:r.descricoes
+     });
      setStatus("🟢 Dados salvos na nuvem");
    }catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}
  }else localStorage.setItem(LS,JSON.stringify(rows));
+
  closeDescription();
  render(false);
 };
