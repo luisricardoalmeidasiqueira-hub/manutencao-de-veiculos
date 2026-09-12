@@ -21,6 +21,14 @@ button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer}.primary{back
 .login{max-width:430px;margin:8vh auto}.hidden{display:none!important}.small{font-size:12px;color:#666}.right{text-align:right}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:15px;z-index:10}.modalbox{background:#fff;border-radius:12px;padding:18px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
 .message-edit{margin-bottom:10px}.save-status{font-weight:bold}.desc-modal textarea{width:100%;min-height:150px;padding:12px;border:1px solid #bbb;border-radius:8px;font:inherit}.desc-title{font-weight:bold;margin-bottom:8px}
+
+.admin-only{display:none}
+.admin-panel{margin-top:12px}
+.admin-list{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.admin-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;border:1px solid #ddd;border-radius:8px;background:#fafafa}
+.admin-badge{font-size:12px;font-weight:bold}
+.storage-box{padding:10px;border-radius:8px;background:#f5f5f5;margin:10px 0}
+
 .desc-inline{margin-top:6px;padding:7px 8px;border-radius:7px;background:#f3f3f3;border:1px solid #ddd;font-size:13px;line-height:1.3;white-space:normal;word-break:break-word;cursor:pointer}
 .desc-inline strong{display:block;margin-bottom:2px}
 
@@ -70,7 +78,7 @@ footer{text-align:center;color:#666;padding:18px;font-size:13px}
       <button class="primary" onclick="addRow()">➕ Adicionar manutenção</button>
       <button class="secondary" onclick="exportCSV()">📤 Exportar histórico</button>
       <button class="secondary" onclick="archiveOld()">📦 Arquivar registros antigos</button>
-      <button class="secondary" onclick="openMessages()">💬 Mensagens de segurança</button>
+      <button id="adminBtn" class="secondary admin-only" onclick="openAdmin()">⚙️ Administração</button><button class="secondary" onclick="openMessages()">💬 Mensagens de segurança</button>
       <button class="secondary" onclick="logout()">Sair</button>
     </div>
   </div>
@@ -101,10 +109,30 @@ footer{text-align:center;color:#666;padding:18px;font-size:13px}
 <div class="toolbar"><button class="primary" onclick="saveMessages()">Salvar mensagens</button><button class="secondary" onclick="closeMessages()">Cancelar</button></div>
 </div></div>
 
+
+<div id="adminModal" class="modal hidden">
+  <div class="modal-card">
+    <h2>⚙️ Administração</h2>
+    <div class="storage-box">
+      <b>📊 Armazenamento</b>
+      <div id="storageInfo" class="small">Calculando...</div>
+      <div class="small">O alerta é uma estimativa por quantidade de registros. O consumo real da cota do Firebase deve ser conferido no console do Firebase.</div>
+    </div>
+    <h3>Administradores</h3>
+    <div id="adminList" class="admin-list"></div>
+    <div class="grid">
+      <input id="newAdminEmail" type="email" placeholder="E-mail do usuário que será administrador">
+      <button class="primary" onclick="addAdministrator()">➕ Adicionar administrador</button>
+    </div>
+    <p id="adminMsg" class="small"></p>
+    <div class="buttons"><button class="secondary" onclick="closeAdmin()">Fechar</button></div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getAuth,onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,sendPasswordResetEmail,signOut } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { getFirestore,collection,addDoc,getDocs,deleteDoc,doc,query,orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore,collection,addDoc,getDocs,deleteDoc,doc,query,orderBy,updateDoc,setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBYResd_Xp5pHlqKrm1Mzl2Gs4fhgEjkYg",
@@ -116,6 +144,10 @@ const firebaseConfig = {
 };
 const firebaseConfigured=!Object.values(firebaseConfig).some(v=>String(v).includes("SUA_")||String(v).includes("SEU_"));
 let auth=null,db=null,user=null,rows=[];
+const PRIMARY_ADMIN_EMAIL="luissiqueir@hotmail.com";
+let adminEmails=[PRIMARY_ADMIN_EMAIL];
+let isAdminUser=false;
+
 const LS="manutencao_veiculos_rows", MSG="manutencao_veiculos_msgs";
 const defaultMessages=[
 "⚠️ Segurança começa antes de colocar o veículo em movimento. Manter o veículo em boas condições é responsabilidade de todos e protege o nosso maior patrimônio: as pessoas.",
@@ -152,8 +184,69 @@ window.resetPassword=async()=>{
  try{await sendPasswordResetEmail(auth,e);el("loginMsg").textContent="Enviamos o processo de recuperação para seu e-mail."}catch(x){el("loginMsg").textContent=x.message}
 };
 window.logout=()=>firebaseConfigured&&signOut(auth);
-function showApp(){el("loginView").classList.add("hidden");el("registerView").classList.add("hidden");el("appView").classList.remove("hidden");el("userInfo").textContent=user?.email||""}
+async function showApp(){
+ el("loginView").classList.add("hidden");el("registerView").classList.add("hidden");el("appView").classList.remove("hidden");
+ el("userInfo").textContent=user?.email||"";
+ await refreshAdminAccess();
+}
 function setStatus(t){el("cloudStatus").textContent=t}
+
+async function refreshAdminAccess(){
+ isAdminUser=String(user?.email||"").toLowerCase()===PRIMARY_ADMIN_EMAIL.toLowerCase();
+ if(firebaseConfigured && user){
+   try{
+     const snap=await getDocs(collection(db,"admins"));
+     adminEmails=[PRIMARY_ADMIN_EMAIL,...snap.docs.map(d=>String(d.id).toLowerCase())];
+     if(adminEmails.includes(String(user.email||"").toLowerCase())) isAdminUser=true;
+   }catch(e){}
+ }
+ document.querySelectorAll(".admin-only").forEach(x=>x.style.display=isAdminUser?"inline-block":"none");
+}
+window.openAdmin=async()=>{
+ if(!isAdminUser)return;
+ el("adminModal").classList.remove("hidden");
+ await renderAdmins();
+};
+window.closeAdmin=()=>el("adminModal").classList.add("hidden");
+
+async function renderAdmins(){
+ const box=el("adminList");
+ box.innerHTML=adminEmails.map(email=>{
+   const primary=email.toLowerCase()===PRIMARY_ADMIN_EMAIL.toLowerCase();
+   return `<div class="admin-item"><span>${email}${primary?' <span class="admin-badge">ADMINISTRADOR PRINCIPAL</span>':''}</span>${primary?'':'<button class="secondary" onclick="removeAdministrator('+JSON.stringify(email)+')">❌ Remover</button>'}</div>`;
+ }).join("");
+ el("storageInfo").textContent=`${rows.length} registro(s) carregado(s).`;
+ if(rows.length>=10000) el("storageInfo").textContent=`🔴 Atenção: ${rows.length} registros. Exporte e arquive registros antigos.`;
+ else if(rows.length>=8000) el("storageInfo").textContent=`🟡 Atenção: ${rows.length} registros. Considere exportar o histórico.`;
+}
+
+window.addAdministrator=async()=>{
+ if(!isAdminUser)return;
+ const email=el("newAdminEmail").value.trim().toLowerCase();
+ if(!email || !email.includes("@"))return el("adminMsg").textContent="Digite um e-mail válido.";
+ if(email===PRIMARY_ADMIN_EMAIL.toLowerCase())return el("adminMsg").textContent="Esse e-mail já é o administrador principal.";
+ try{
+   if(!firebaseConfigured)throw Error("Firebase não configurado.");
+   await setDoc(doc(db,"admins",email),{email,criadoEm:new Date().toISOString()});
+   if(!adminEmails.includes(email))adminEmails.push(email);
+   el("newAdminEmail").value="";
+   el("adminMsg").textContent="Administrador adicionado.";
+   await renderAdmins();
+ }catch(e){el("adminMsg").textContent="Não foi possível adicionar. O usuário precisa estar cadastrado no aplicativo."}
+};
+
+window.removeAdministrator=async(email)=>{
+ if(!isAdminUser || email.toLowerCase()===PRIMARY_ADMIN_EMAIL.toLowerCase())return;
+ if(!confirm("Remover este administrador?"))return;
+ try{
+   const snap=await getDocs(collection(db,"admins"));
+   const found=snap.docs.find(d=>String(d.id).toLowerCase()===email.toLowerCase());
+   if(found)await deleteDoc(doc(db,"admins",found.id));
+   adminEmails=adminEmails.filter(x=>x.toLowerCase()!==email.toLowerCase());
+   await renderAdmins();
+ }catch(e){el("adminMsg").textContent="Não foi possível remover o administrador."}
+};
+
 async function loadRows(){
  setStatus("🟡 Carregando...");
  try{const snap=await getDocs(collection(db,"manutencoes"));rows=snap.docs.map(d=>({id:d.id,...d.data()}));setStatus("🟢 Dados salvos na nuvem");render()}catch(e){setStatus("🔴 Erro ao carregar — tente novamente")}
@@ -300,7 +393,7 @@ window.exportCSV=()=>{
  const csv=[cols.join(";"),...rows.map(r=>cols.map(c=>`"${String(r[c]??"").replace(/"/g,'""')}"`).join(";"))].join("\n");
  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download="historico_manutencao.csv";a.click();
 };
-window.archiveOld=async()=>{
+window.archiveOld=async()=>{if(!isAdminUser)return alert("Acesso restrito ao administrador.");
  const dates=rows.map(r=>r.data).filter(Boolean).sort();if(!dates.length)return alert("Não há registros com data.");
  const cutoff=prompt("Arquivar registros anteriores a qual data? (AAAA-MM-DD)");
  if(!cutoff)return;if(!confirm("Primeiro exporte o histórico para garantir uma cópia. Deseja continuar com o arquivamento?"))return;
