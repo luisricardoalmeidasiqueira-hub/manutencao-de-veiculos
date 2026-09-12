@@ -166,29 +166,26 @@ window.addRow=async()=>{
 };
 function select(v,opts,field,id){const cls=field==="carro"?"car-select":"";const handler=field==="tipoManutencao"?"changeMaintenance(this)":"editField(this)";return `<select class="${cls}" data-id="${id}" data-field="${field}" onchange="${handler}">${opts.map(x=>`<option value="${x}" ${String(x)===String(v)?"selected":""}>${x}</option>`).join("")}</select>`}
 function input(v,field,id,type="text"){return `<input type="${type}" value="${String(v??"").replace(/"/g,"&quot;")}" data-id="${id}" data-field="${field}" onchange="editField(this)">`}
-window.changeMaintenance=async(x)=>{
- const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;
- const novo=x.value;
- r.descricao="";
- if(firebaseConfigured){
-   setStatus("🟡 Salvando...");
-   try{
-     const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
-     await updateDoc(doc(db,"manutencoes",r.id),{tipoManutencao:novo,descricao:""});
-     setStatus("🟢 Dados salvos na nuvem");
-   }catch(e){
-     setStatus("🔴 Erro ao salvar — tente novamente");
-   }
- }else{
-   localStorage.setItem(LS,JSON.stringify(rows));
- }
- render(false);
- setTimeout(()=>openDescription(r.id),150);
-};
 window.editField=async(x)=>{
  const r=rows.find(a=>a.id===x.dataset.id);if(!r)return;
  const field=x.dataset.field;
  r[field]=x.value;
+
+ if(field==="tipoManutencao"){
+   // Cada troca de tipo começa com uma descrição própria e vazia.
+   r.descricao="";
+   if(firebaseConfigured){
+     setStatus("🟡 Salvando...");
+     try{
+       const {updateDoc}=await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js");
+       await updateDoc(doc(db,"manutencoes",r.id),{tipoManutencao:x.value,descricao:""});
+       setStatus("🟢 Dados salvos na nuvem");
+     }catch(e){setStatus("🔴 Erro ao salvar — tente novamente")}
+   }else localStorage.setItem(LS,JSON.stringify(rows));
+   render(false);
+   setTimeout(()=>openDescription(r.id),150);
+   return;
+ }
 
  if(firebaseConfigured){
    setStatus("🟡 Salvando...");try{
@@ -199,7 +196,6 @@ window.editField=async(x)=>{
  }else localStorage.setItem(LS,JSON.stringify(rows));
 
  render(false);
-
 };
 window.openDescription=(id)=>{
  const r=rows.find(a=>a.id===id);if(!r)return;
