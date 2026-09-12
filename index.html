@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<meta name="theme-color" content="#b00020">
+<meta name="theme-color" content="#14532d">
 <link rel="manifest" href="manifest.json">
 <title>Manutenção de Veículos</title>
 <style>
@@ -389,18 +389,19 @@ function render(updateCount=true){
  if(updateCount)el("recordCount").textContent=rows.length
 }
 window.removeRow=async(id)=>{if(!confirm("Excluir este registro?"))return;const r=rows.find(x=>x.id===id);if(firebaseConfigured){setStatus("🟡 Salvando...");try{await deleteDoc(doc(db,"manutencoes",id));setStatus("🟢 Dados salvos na nuvem")}catch(e){setStatus("🔴 Erro ao salvar — tente novamente");return}}rows=rows.filter(x=>x.id!==id);localStorage.setItem(LS,JSON.stringify(rows));render()};
-window.exportCSV=()=>{if(!isAdminUser)return alert("Acesso restrito ao administrador.");
-try{localStorage.setItem(EXPORT_CONFIRM_KEY,new Date().toISOString());}catch(e){}
-
+window.exportCSV=()=>{
+ if(!isAdminUser)return alert("Acesso restrito ao administrador.");
+ try{localStorage.setItem(EXPORT_CONFIRM_KEY,new Date().toISOString());}catch(e){}
  const cols=["carro","placa","tipoVeiculo","modelo","data","kmAtual","tipoManutencao","descricao","oficina","status","proximaManutencao","proximaOleoKm"];
  const csv=[cols.join(";"),...rows.map(r=>cols.map(c=>`"${String(r[c]??"").replace(/"/g,'""')}"`).join(";"))].join("\n");
- const a=document.createElement("a");a.href=URL.creatif(!isAdminUser)return alert("Acesso restrito ao administrador.");
-let ultimoExport="";
-try{ultimoExport=localStorage.getItem(EXPORT_CONFIRM_KEY)||"";}catch(e){}
-if(!ultimoExport){
-  return alert("Antes de arquivar, exporte o histórico e salve o arquivo CSV.");
-}
-eObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download="historico_manutencao.csv";a.click();
+ const a=document.createElement("a");
+ const url=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));
+ a.href=url;
+ a.download="historico_manutencao.csv";
+ document.body.appendChild(a);
+ a.click();
+ a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
 window.archiveOld=async()=>{if(!isAdminUser)return alert("Acesso restrito ao administrador.");
  const dates=rows.map(r=>r.data).filter(Boolean).sort();if(!dates.length)return alert("Não há registros com data.");
