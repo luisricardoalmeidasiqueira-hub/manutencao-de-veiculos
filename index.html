@@ -49,7 +49,7 @@ header{background:#14532d !important;}
   <div class="field"><label>E-mail</label><input id="loginEmail" type="email" autocomplete="email"></div><br>
   <div class="field"><label>Senha</label><input id="loginPassword" type="password" autocomplete="current-password"></div>
   <div class="toolbar">
-    <button id="loginBtn" class="primary" type="button">Entrar</button>
+    <button class="primary" type="button" onclick="login()">Entrar</button>
     <button class="secondary" onclick="showRegister()">Criar cadastro</button>
     <button class="secondary" onclick="resetPassword()">Esqueci minha senha</button>
   </div>
@@ -175,7 +175,6 @@ function el(id){return document.getElementById(id)}
 window.showLogin=()=>{el("loginView").classList.remove("hidden");el("registerView").classList.add("hidden")};
 window.showRegister=()=>{el("loginView").classList.add("hidden");el("registerView").classList.remove("hidden")};
 window.login=async()=>{try{if(!firebaseConfigured)throw Error("Firebase ainda não configurado.");await signInWithEmailAndPassword(auth,el("loginEmail").value.trim(),el("loginPassword").value);setStatus("🟢 Dados salvos na nuvem")}catch(e){el("loginMsg").textContent=e.message}};
-el("loginBtn").addEventListener("click",window.login);
 el("loginPassword").addEventListener("keydown",e=>{if(e.key==="Enter")window.login();});
 window.register=async()=>{
  const m=el("regMatricula").value.trim(),n=el("regNome").value.trim(),e=el("regEmail").value.trim(),p=el("regPassword").value,p2=el("regPassword2").value;
