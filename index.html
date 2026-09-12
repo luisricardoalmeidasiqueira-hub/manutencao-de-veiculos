@@ -21,6 +21,9 @@ button{border:0;border-radius:8px;padding:10px 13px;cursor:pointer}.primary{back
 .login{max-width:430px;margin:8vh auto}.hidden{display:none!important}.small{font-size:12px;color:#666}.right{text-align:right}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:15px;z-index:10}.modalbox{background:#fff;border-radius:12px;padding:18px;max-width:600px;width:100%;max-height:90vh;overflow:auto}
 .message-edit{margin-bottom:10px}.save-status{font-weight:bold}.desc-modal textarea{width:100%;min-height:150px;padding:12px;border:1px solid #bbb;border-radius:8px;font:inherit}.desc-title{font-weight:bold;margin-bottom:8px}
+.desc-inline{margin-top:6px;padding:7px 8px;border-radius:7px;background:#f3f3f3;border:1px solid #ddd;font-size:13px;line-height:1.3;white-space:normal;word-break:break-word;cursor:pointer}
+.desc-inline strong{display:block;margin-bottom:2px}
+
 footer{text-align:center;color:#666;padding:18px;font-size:13px}
 @media(max-width:600px){main{padding:8px}.grid{grid-template-columns:1fr 1fr}.grid .wide{grid-column:1/-1}}
 </style>
@@ -78,7 +81,7 @@ footer{text-align:center;color:#666;padding:18px;font-size:13px}
       <th>Próxima Troca de Óleo (km)</th><th>Ação</th>
     </tr></thead><tbody id="tbody"></tbody></table>
   </div>
-  <footer>Criado por Luis Ricardo e Rodrigo<br><span class="small">Versão corrigida do aplicativo</span></footer>
+  <footer>Criado por Luis Ricardo e Rodrigo<br><span class="small">Versão corrigida do aplicativo • descrição visível</span></footer>
 </main>
 </div>
 
@@ -222,7 +225,7 @@ function render(updateCount=true){
 <td class="plate-col">${input(r.placa,"placa",r.id)}</td>
 <td>${select(r.tipoVeiculo,["Carro","Caminhonete","Caminhão","Digger"],"tipoVeiculo",r.id)}</td>
 <td>${input(r.modelo,"modelo",r.id)}</td><td>${input(r.data,"data",r.id,"date")}</td><td class="km-col">${input(r.kmAtual,"kmAtual",r.id,"number")}</td>
-<td>${select(r.tipoManutencao,["Troca de óleo","Troca de pneu","Alinhamento e Balanceamento","Revisão geral","Freios","Bateria","Outras manutenções"],"tipoManutencao",r.id)}</td>
+<td>${select(r.tipoManutencao,["Troca de óleo","Troca de pneu","Alinhamento e Balanceamento","Revisão geral","Freios","Bateria","Outras manutenções"],"tipoManutencao",r.id)}${r.descricao?`<div class="desc-inline" onclick="openDescription('${r.id}')"><strong>📝 O que foi feito:</strong>${String(r.descricao).replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`:""}</td>
 <td>${input(r.oficina,"oficina",r.id)}</td>
 <td>${select(r.status,["Pendente","Em andamento","Concluída"],"status",r.id)}</td><td>${input(r.proximaManutencao,"proximaManutencao",r.id,"date")}</td>
 <td>${input(r.proximaOleoKm,"proximaOleoKm",r.id,"number")}<br>${oil(r)}</td>
