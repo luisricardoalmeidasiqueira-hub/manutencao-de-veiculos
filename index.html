@@ -355,7 +355,7 @@ header{background:#14532d !important;}
   <button id="sideAdminBtn" type="button" class="menu-admin admin-only" onclick="window.toggleSideMenu(false);openAdmin()">⚙️ Administração</button>
   <button type="button" onclick="window.toggleSideMenu(false);addRow()"><span class="menu-plus-green">＋</span> Adicionar manutenção</button>
   <button type="button" onclick="window.toggleSideMenu(false);window.openCarForm?window.openCarForm():addRow()"><span class="menu-plus-green">＋</span> Adicionar carro</button>
-  <button type="button" onclick="window.toggleSideMenu(false);window.openCarConsultation()">🚗 Consultar/excluir carros</button>
+  <button type="button" onclick="window.toggleSideMenu(false);window.openCarConsultation()">🚗 Painel de veículos</button>
   <button type="button" onclick="window.toggleSideMenu(false);window.openWashing()"><svg width="18" height="18" viewBox="0 0 24 24" style="vertical-align:-3px;margin-right:4px" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="10" width="18" height="9" rx="3" fill="#20a050"/><circle cx="7" cy="7" r="2" fill="#eafff2"/><circle cx="12" cy="5.5" r="2.4" fill="#eafff2"/><circle cx="17" cy="7" r="2" fill="#eafff2"/></svg>Lavagem</button>
   <button type="button" onclick="window.toggleSideMenu(false);window.openHistoryModal()">📅 Calendário / Histórico</button>
   <button type="button" onclick="window.toggleSideMenu(false);exportCSV()">📄 Exportar</button>
@@ -387,6 +387,8 @@ header{background:#14532d !important;}
   <div class="modal-card car-modal-card">
     <div class="car-modal-head"><h2 id="carFormTitle"><span class="menu-plus-green">＋</span> Adicionar carro</h2><button type="button" class="secondary" onclick="window.closeCarForm()">✖ Fechar</button></div>
     <div class="car-form-grid">
+      <div class="field"><label>Nº do carro <span class="required-star">*</span></label><input id="carNumero" type="number" min="1" step="1" inputmode="numeric" placeholder="Ex.: 8"></div>
+      <div class="field"><label>Padrinho (responsável)</label><input id="carPadrinho" type="text" maxlength="80" placeholder="Nome da pessoa"></div>
       <div class="field"><label>Marca <span class="required-star">*</span></label><div class="brand-picker"><select id="carMarca" class="brand-native-select"><option value="">Selecione a marca</option><option>Volkswagen</option><option>Fiat</option><option>Chevrolet</option><option>Ford</option><option>Toyota</option><option>Renault</option><option>Hyundai</option><option>Honda</option><option>Nissan</option><option>Jeep</option><option>Mercedes-Benz</option><option>BYD</option><option>Outras / sem emblema</option></select><button type="button" id="brandPickerButton" class="brand-picker-button">🏭 <span id="brandPickerLabel">Selecione a marca</span><span>⌄</span></button><div id="brandOptions" class="brand-options hidden"></div><span id="carBrandEmblem" class="brand-emblem">—</span></div></div>
       <div class="field"><label>Modelo <span class="required-star">*</span></label><input id="carModelo" type="text" placeholder="Ex.: Gol"></div>
       <div class="field"><label>Placa <span class="required-star">*</span></label><input id="carPlaca" type="text" maxlength="8" placeholder="Ex.: ABC1D23" autocomplete="off"></div>
@@ -402,8 +404,9 @@ header{background:#14532d !important;}
 
 <div id="carConsultModal" class="modal hidden" aria-hidden="true">
   <div class="modal-card car-modal-card">
-    <div class="car-modal-head"><h2 style="margin:0;color:#14532d">🚗 Consultar carros</h2><button type="button" class="secondary" onclick="window.closeCarConsultation()">✖ Fechar</button></div>
+    <div class="car-modal-head"><h2 style="margin:0;color:#14532d">🚗 Painel de veículos</h2><button type="button" class="secondary" onclick="window.closeCarConsultation()">✖ Fechar</button></div>
     <div class="car-list-search"><input id="carSearch" type="search" placeholder="🔎 Buscar por placa, modelo, marca ou ano..."><button type="button" class="primary" onclick="window.openCarForm()"><span class="menu-plus-green">＋</span> Adicionar</button></div>
+    <div id="carSummary" class="storage-box"></div>
     <div id="carListCount" class="resolved-count"></div>
     <div id="carList" class="car-list"></div>
   </div>
@@ -1860,7 +1863,7 @@ function maintenanceCarOptions(current){
    const c=byNumero.get(n);
    if(c&&(c.marca||c.modelo||c.placa)){
      const desc=[c.marca,c.modelo].filter(Boolean).join(" ")||"Sem marca/modelo";
-     opts.push({value,label:`${desc}${c.placa?" • "+c.placa:""}`});
+     opts.push({value,label:`Carro ${n} — ${desc}${c.placa?" • "+c.placa:""}${c.padrinho?" • "+c.padrinho:""}`});
    }else{
      opts.push({value,label:value});
    }
@@ -1894,19 +1897,22 @@ function carMaintenanceStatus(car){
 function renderCarList(){
   const list=el("carList"),count=el("carListCount"); if(!list)return;
   const q=String(el("carSearch")?.value||"").trim().toLowerCase();
-  const found=cars.filter(c=>[c.marca,c.modelo,c.placa,c.ano,c.combustivel,c.status,c.descricao,c.numero].map(v=>String(v??"").toLowerCase()).join(" ").includes(q)).slice().sort((a,b)=>(Number(a.numero)||999)-(Number(b.numero)||999));
+  const found=cars.filter(c=>[c.marca,c.modelo,c.placa,c.ano,c.combustivel,c.status,c.descricao,c.numero,c.padrinho].map(v=>String(v??"").toLowerCase()).join(" ").includes(q)).slice().sort((a,b)=>carNum(a)-carNum(b));
   if(count)count.textContent=`${found.length} veículo(s) encontrado(s)`;
+  const sum=el("carSummary");if(sum){const ativos=cars.filter(c=>(c.status||"Ativo")==="Ativo").length;const miss=missingCarNumbers();sum.innerHTML=`<b>🚗 ${cars.length} carro(s) cadastrado(s)</b> • ✅ ${ativos} ativo(s) • ⏸️ ${cars.length-ativos} inativo(s)<br><span class="small">${miss.length?"Faltam cadastrar na sequência: "+miss.join(", "):"Sequência completa, sem números faltando."}</span>`;}
   if(!found.length){list.innerHTML='<div class="car-empty">Nenhum veículo encontrado.</div>';return;}
   list.innerHTML=found.map(c=>{
-    const id=escapeHtml(c.id); const title=escapeHtml(`${c.modelo||"Modelo não informado"}`.trim());
+    const id=escapeHtml(c.id); const title=escapeHtml(`Carro ${carNum(c)} — ${c.modelo||"Modelo não informado"}`.trim());
     const plate=escapeHtml(c.placa||"Sem placa"); const ano=c.ano?` • 📅 ${escapeHtml(c.ano)}`:""; const status=escapeHtml(c.status||"Ativo");
     const fuel=c.combustivel?` • ⛽ ${escapeHtml(c.combustivel)}`:"";
     const {badge,km}=carMaintenanceStatus(c);
     const kmLine=km!==null?` • 🛣️ ${km.toLocaleString("pt-BR")} km`:"";
-    return `<div class="car-item"><div class="car-item-main"><div class="car-item-title">${brandEmblem(c.marca)} ${title}</div><div class="car-item-meta"><b>Marca:</b> ${escapeHtml(c.marca||"Sem marca")} • <b>Placa:</b> ${plate}${ano}${fuel}${kmLine}<br><span class="car-status">${status}</span>${badge?` ${badge}`:""}${c.descricao?`<br><b>Obs.:</b> ${escapeHtml(c.descricao)}`:""}</div></div><div class="car-item-actions"><button type="button" class="secondary" onclick="window.editCar('${id}')">✏️ Editar</button><button type="button" class="car-delete" aria-label="Excluir veículo" title="Excluir veículo" onclick="window.deleteCar('${id}')">✕</button></div></div>`;
+    return `<div class="car-item"><div class="car-item-main"><div class="car-item-title">${brandEmblem(c.marca)} ${title}</div><div class="car-item-meta"><b>Marca:</b> ${escapeHtml(c.marca||"Sem marca")} • <b>Placa:</b> ${plate}${ano}${fuel}${kmLine}${c.padrinho?`<br><b>👤 Padrinho:</b> ${escapeHtml(c.padrinho)}`:""}<br><span class="car-status">${status}</span>${badge?` ${badge}`:""}${c.descricao?`<br><b>Obs.:</b> ${escapeHtml(c.descricao)}`:""}</div></div><div class="car-item-actions"><button type="button" class="secondary" onclick="window.editCar('${id}')">✏️ Editar</button><button type="button" class="car-delete" aria-label="Excluir veículo" title="Excluir veículo" onclick="window.deleteCar('${id}')">✕</button></div></div>`;
   }).join("");
 }
-function nextCarNumber(){return Math.max(0,...cars.map(c=>Number(c.numero)||0))+1;}
+function carNum(c){const n=Number(c?.numero);if(Number.isFinite(n)&&n>0)return n;const i=cars.indexOf(c);return i>=0?i+1:0;}
+function nextCarNumber(){return Math.max(0,...cars.map(carNum))+1;}
+function missingCarNumbers(){const have=new Set(cars.map(carNum));const max=Math.max(0,...have);const out=[];for(let n=1;n<max;n++)if(!have.has(n))out.push(n);return out;}
 function populateCarYears(){const s=el("carAno");if(!s)return;if(s.options.length>1)return;const cur=new Date().getFullYear();for(let y=1980;y<=cur+1;y++){const o=document.createElement("option");o.value=String(y);o.textContent=String(y);s.appendChild(o);}}
 function updateBrandEmblem(){const x=el("carBrandEmblem"),m=el("carMarca")?.value||"";const map=BRAND_MARKS?.[m];if(!x)return;if(!m||!map){x.textContent='—';return}x.innerHTML=map[0]?`<img class="brand-logo-img" src="https://cdn.simpleicons.org/${map[0]}" alt="${m}" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline'"/><span class="brand-logo-badge" style="display:none">${map[1]}</span>`:`<span class="brand-logo-badge">${map[1]}</span>`;}
 const BRAND_MARKS={Volkswagen:['volkswagen','VW'],Fiat:['fiat','FIAT'],Chevrolet:['chevrolet','CHEV'],Ford:['ford','FORD'],Toyota:['toyota','TOY'],Renault:['renault','REN'],Hyundai:['hyundai','HYU'],Honda:['honda','HON'],Nissan:['nissan','NIS'],Jeep:['jeep','JEEP'],'Mercedes-Benz':['mercedes','MB'],BYD:['byd','BYD'],'Outras / sem emblema':['','OUT']};
@@ -1918,7 +1924,7 @@ window.openCarForm=function(id=""){
   editingCarId=id?String(id):null;
   const r=editingCarId?cars.find(c=>String(c.id)===editingCarId):null;
   el("carFormTitle").textContent=r?"✏️ Editar carro":"➕ Adicionar carro";
-  el("carMarca").value=r?.marca||""; syncBrandPicker(); el("carModelo").value=r?.modelo||""; el("carPlaca").value=r?.placa||"";
+  el("carNumero").value=r?carNum(r):nextCarNumber(); el("carPadrinho").value=r?.padrinho||""; el("carMarca").value=r?.marca||""; syncBrandPicker(); el("carModelo").value=r?.modelo||""; el("carPlaca").value=r?.placa||"";
   populateCarYears(); el("carAno").value=r?.ano||""; updateBrandEmblem(); el("carCombustivel").value=r?.combustivel||""; el("carStatus").value=r?.status||"Ativo"; el("carDescricao").value=r?.descricao||""; el("carFormMsg").textContent="";
   const m=el("carFormModal");m.classList.remove("hidden");m.classList.add("open");m.setAttribute("aria-hidden","false");
   setTimeout(()=>el("carMarca")?.focus(),80);
@@ -1932,12 +1938,21 @@ window.closeCarConsultation=function(){const m=el("carConsultModal");if(m){m.cla
 window.saveCar=async function(){
   const msg=el("carFormMsg");
   const marca=el("carMarca").value.trim(),modelo=el("carModelo").value.trim(),placa=normalizePlate(el("carPlaca").value),ano=String(el("carAno").value||"").trim(),combustivel=el("carCombustivel").value,status=el("carStatus").value,descricao=el("carDescricao").value.trim();
+  const numero=Math.floor(Number(el("carNumero").value)),padrinho=el("carPadrinho").value.trim();
+  if(!Number.isFinite(numero)||numero<1){msg.textContent="🔴 Informe o Nº do carro (número inteiro a partir de 1).";return;}
   if(!marca||!modelo||!placa){msg.textContent="🔴 Preencha Marca, Modelo e Placa.";return;}
+  const donoDoNumero=cars.find(c=>carNum(c)===numero&&String(c.id)!==String(editingCarId||""));
+  if(donoDoNumero){msg.textContent=`🔴 O Carro ${numero} já está cadastrado (${donoDoNumero.modelo||"sem modelo"}${donoDoNumero.placa?" — "+donoDoNumero.placa:""}).`;return;}
   if(cars.some(c=>normalizePlate(c.placa)===placa&&String(c.id)!==String(editingCarId||""))){msg.textContent="🔴 Já existe um veículo cadastrado com essa placa.";return;}
   const now=new Date().toISOString();
   let r=editingCarId?cars.find(c=>String(c.id)===String(editingCarId)):null;
-  if(!r){r={id:"car_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),criadoEm:now,numero:nextCarNumber()};cars.push(r);}
-  Object.assign(r,{marca,modelo,placa,ano,combustivel,status,descricao,atualizadoEm:now,uid:String(user?.uid||"")});
+  if(!r){r={id:"car_"+Date.now()+"_"+Math.random().toString(36).slice(2,8),criadoEm:now,numero};cars.push(r);}
+  const numeroAntigo=carNum(r);
+  Object.assign(r,{numero,padrinho,marca,modelo,placa,ano,combustivel,status,descricao,atualizadoEm:now,uid:String(user?.uid||"")});
+  if(editingCarId&&numeroAntigo!==numero){
+    rows.forEach(x=>{if(x.carro===`Carro ${numeroAntigo}`){x.carro=`Carro ${numero}`;x.atualizadoEm=now;cloudSaveRow(x,true).catch(()=>{});}});
+    safeSet(LS,JSON.stringify(rows));
+  }
   saveCarsLocal(); renderCarList(); render(false); msg.textContent="🟢 Veículo salvo neste aparelho.";
   try{await cloudSaveCar(r);msg.textContent="☁️ Veículo salvo e enviado para o Firebase."}catch(_e){msg.textContent="🟢 Veículo salvo neste aparelho; Firebase aguardará conexão/permissão."}
   setTimeout(()=>window.closeCarForm(),500);
