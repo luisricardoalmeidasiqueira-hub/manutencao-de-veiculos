@@ -288,7 +288,7 @@ header{background:#14532d !important;}
   <div class="card">
     <div class="grid">
       <div><b>Usuário</b><div id="userInfo" class="small"></div></div>
-      <div><b>Firebase</b> <button type="button" id="syncNowBtn" class="sync-now-btn" title="Atualizar agora" aria-label="Atualizar agora" onclick="window.syncNow(this)">🔄</button><div id="cloudStatus" class="save-status">🟡 Verificando...</div></div>
+      <div><b>Firebase</b> <span class="fb-cloud" aria-hidden="true">☁️</span> <button type="button" id="syncNowBtn" class="sync-now-btn" title="Atualizar agora" aria-label="Atualizar agora" onclick="window.syncNow(this)">🔄</button><div id="cloudStatus" class="save-status" title="Verificando..." onclick="window.showCloudStatus()">🟡</div></div>
       <div><div id="homeUserCountRow" class="small admin-only" style="margin-bottom:4px">👥 Usuários: <b id="homeUserCount">—</b></div><b>Registros</b><div id="recordCount">0</div></div>
     </div>
     <div class="main-action"><button class="primary add-maintenance" onclick="addRow()"><span class="add-plus" style="color:#14532d !important;-webkit-text-fill-color:#14532d !important;text-shadow:none !important;background:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;">+</span> Adicionar manutenção</button></div>
@@ -422,6 +422,15 @@ header{background:#14532d !important;}
   </div>
 </div></div>
 
+<div id="statusLegendModal" class="modal hidden" onclick="if(event.target===this)window.closeStatusLegend()"><div class="modalbox">
+<h3 style="margin-top:0;color:#14532d">☁️ O que significa cada bolinha</h3>
+<div class="storage-box"><b>Agora:</b> <span id="statusLegendNow"></span></div>
+<div class="legend-row"><span>🟢</span><div><b>Tudo certo</b><br><span class="small">Conectado ao Firebase e com os dados sincronizados.</span></div></div>
+<div class="legend-row"><span>🟡</span><div><b>Verificando</b><br><span class="small">O app está conectando ou salvando. Espere alguns segundos.</span></div></div>
+<div class="legend-row"><span>🟠</span><div><b>Salvo só no aparelho</b><br><span class="small">A nuvem não respondeu agora (internet fraca ou instável). Nada foi perdido: o app envia depois. Se continuar, toque em 🔄.</span></div></div>
+<div class="legend-row"><span>🔴</span><div><b>Não conectou</b><br><span class="small">Sem internet, Firebase recusou o acesso ou houve erro ao salvar. Confira a internet e toque em 🔄. Se continuar, avise o administrador.</span></div></div>
+<div class="toolbar" style="justify-content:flex-end"><button type="button" class="primary" onclick="window.closeStatusLegend()">Entendi</button></div>
+</div></div>
 <div id="msgModal" class="modal hidden"><div class="modalbox">
 <h3>Editar mensagens de segurança</h3>
 <div id="messageFields"></div>
@@ -975,7 +984,23 @@ async function showApp(){
  setStatus("🟢 Dados salvos neste aparelho");
  startCloudSync();
 }
-function setStatus(t){el("cloudStatus").textContent=t}
+function setStatus(t){
+ const box=el("cloudStatus");if(!box)return;
+ const full=String(t||"");
+ const icon=(full.match(/^\S+/)||[""])[0];
+ // Tudo certo ou em andamento: só a bolinha. Problema (🔴/🟠): mostra o aviso escrito.
+ const problem=/^(🔴|🟠)/.test(full);
+ const dot=/^☁️/.test(full)?"🟢":icon;
+ box.textContent=problem?full:dot;
+ box.title=full;box.setAttribute("aria-label",full);
+ box.classList.toggle("status-problem",problem);
+}
+window.showCloudStatus=function(){
+ const b=el("cloudStatus"),m=el("statusLegendModal");if(!m)return;
+ el("statusLegendNow").textContent=(b&&b.title)?b.title:"Sem informação no momento.";
+ m.classList.remove("hidden");
+};
+window.closeStatusLegend=function(){el("statusLegendModal")?.classList.add("hidden")};
 
 const CHANGE_REQUESTS_KEY = "mv_change_requests_v1";
 let changeRequests=[];
@@ -2167,6 +2192,11 @@ footer div{margin:2px 0}.footer-copy{font-size:12px;color:#777;margin-top:6px!im
   .required-legend{font-size:11px}
   footer{font-size:12px;padding:14px}
 }
+.fb-cloud{font-size:1.05em;vertical-align:middle}
+#cloudStatus{cursor:pointer;margin-top:4px}
+#cloudStatus::after{content:" ⓘ";font-size:12px;color:#888;font-weight:normal}
+.legend-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eee}.legend-row>span{font-size:22px;line-height:1}
+#cloudStatus.status-problem{font-size:13px}
 </style>
 <script>
 (function(){
