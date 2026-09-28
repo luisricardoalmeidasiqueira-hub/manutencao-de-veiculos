@@ -287,7 +287,7 @@ header{background:#14532d !important;}
   <div id="homeStorageAlert" class="admin-only hidden" style="margin:0 0 10px"></div>
   <div class="card">
     <div class="grid">
-      <div><b>Usuário</b><div id="userInfo" class="small"></div></div>
+      <div><b id="userRoleLabel">Usuário</b><div id="userInfo" class="small"></div></div>
       <div><b>Firebase</b> <span class="fb-cloud" aria-hidden="true">☁️</span> <button type="button" id="syncNowBtn" class="sync-now-btn" title="Atualizar agora" aria-label="Atualizar agora" onclick="window.syncNow(this)">🔄</button><div id="cloudStatus" class="save-status" title="Verificando..." onclick="window.showCloudStatus()">🟡</div></div>
       <div><div id="homeUserCountRow" class="small admin-only" style="margin-bottom:4px">👥 Usuários: <b id="homeUserCount">—</b></div><b>Registros</b><div id="recordCount">0</div></div>
     </div>
@@ -967,12 +967,13 @@ async function showApp(){
    }catch(_e){}
  }
  const adminNow=isPrimaryAdmin || adminEmails.includes(email.toLowerCase());
+ const roleLabel=el("userRoleLabel"); if(roleLabel) roleLabel.textContent=isPrimaryAdmin?"Desenvolvedor":(adminNow?"Administrador":"Usuário");
  const displayName=profileName || (isPrimaryAdmin ? "Luis Ricardo de Almeida Siqueira" : "");
  const safeDisplayName=escapeHtml(displayName);
  const safeEmail=escapeHtml(email);
  el("userInfo").innerHTML=displayName
-   ? `<b>${safeDisplayName}</b><br><span class="small">${safeEmail}</span>${adminNow?`<br><span class="small" style="color:#14532d;font-weight:bold">🛡️ ${isPrimaryAdmin?"ADMINISTRADOR PRINCIPAL":"ADMINISTRADOR"}</span>`:""}`
-   : `${safeEmail}${adminNow?`<br><span class="small" style="color:#14532d;font-weight:bold">🛡️ ${isPrimaryAdmin?"ADMINISTRADOR PRINCIPAL":"ADMINISTRADOR"}</span>`:""}`;
+   ? `<b>${safeDisplayName}</b><br><span class="small">${safeEmail}</span>${adminNow?`<br><span class="small" style="color:#14532d;font-weight:bold">${isPrimaryAdmin?"💻 DESENVOLVEDOR<br>🛡️ ADMINISTRADOR PRINCIPAL":"🛡️ ADMINISTRADOR"}</span>`:""}`
+   : `${safeEmail}${adminNow?`<br><span class="small" style="color:#14532d;font-weight:bold">${isPrimaryAdmin?"💻 DESENVOLVEDOR<br>🛡️ ADMINISTRADOR PRINCIPAL":"🛡️ ADMINISTRADOR"}</span>`:""}`;
  await refreshAdminAccess();
  refreshHomeUserCount();
  if(!isPrimaryAdmin && adminEmails.includes(email.toLowerCase())){
@@ -1207,7 +1208,7 @@ async function renderAdmins(){
  const box=el("adminList");
  box.innerHTML=adminEmails.map(email=>{
    const primary=email.toLowerCase()===PRIMARY_ADMIN_EMAIL.toLowerCase();
-   return `<div class="admin-item"><span>${email}${primary?' <span class="admin-badge">ADMINISTRADOR PRINCIPAL</span>':''}</span>${primary?'':'<button type="button" class="secondary" data-remove-email="'+escapeHtml(email)+'">❌ Remover</button>'}</div>`;
+   return `<div class="admin-item"><span>${email}${primary?' <span class="admin-badge">💻 DESENVOLVEDOR · ADMINISTRADOR PRINCIPAL</span>':''}</span>${primary?'':'<button type="button" class="secondary" data-remove-email="'+escapeHtml(email)+'">❌ Remover</button>'}</div>`;
  }).join("");
  box.querySelectorAll("[data-remove-email]").forEach(btn=>{
    btn.addEventListener("click",()=>window.removeAdministrator(btn.getAttribute("data-remove-email")||""));
@@ -1253,7 +1254,7 @@ async function renderUsers(){
      const lastLogin=u.ultimoLoginEm?new Date(u.ultimoLoginEm).toLocaleString("pt-BR"):"Ainda não registrado";
      let action="";
      const primaryViewer=String(user?.email||"").toLowerCase()===PRIMARY_ADMIN_EMAIL.toLowerCase();
-     if(primary) action='<span class="admin-badge">ADMINISTRADOR PRINCIPAL</span>';
+     if(primary) action='<span class="admin-badge">💻 DESENVOLVEDOR · ADMINISTRADOR PRINCIPAL</span>';
      else if(admin) action=primaryViewer?`<span class="user-action-row"><button type="button" class="secondary user-action-btn" title="Remover administrador" aria-label="Remover administrador" data-remove-email="${safeEmail}">↩️</button><button type="button" class="secondary user-action-btn" title="Excluir usuário" aria-label="Excluir usuário" style="color:#b00020;border:1px solid #b00020" data-delete-user-email="${safeEmail}">🗑️</button></span>`:'<span class="small">🛡️ Administrador</span>';
      else action=primaryViewer?`<span class="user-action-row"><button type="button" class="primary user-action-btn" title="Promover a administrador" aria-label="Promover a administrador" data-promote-email="${safeEmail}">⬆️</button><button type="button" class="secondary user-action-btn" title="Excluir usuário" aria-label="Excluir usuário" style="color:#b00020;border:1px solid #b00020" data-delete-user-email="${safeEmail}">🗑️</button></span>`:'<span class="small">Usuário</span>';
      return `<div class="admin-item"><span><b>${name}</b><br><span class="small">${safeEmail}</span><br><span class="small">🕐 Último acesso: ${escapeHtml(lastLogin)}</span>${admin&&!primary?'<br><span class="small" style="color:#14532d;font-weight:bold">🛡️ ADMINISTRADOR</span>':''}</span><span>${action}</span></div>`;
@@ -2166,7 +2167,7 @@ rows=safeParse(LS,[]);
 render();
 </script>
 <script>
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=9").catch(()=>{});
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=10").catch(()=>{});
 </script>
 
 <style>
