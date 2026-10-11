@@ -344,7 +344,7 @@ header{background:#14532d !important;}
   <div id="resolvedCount" class="resolved-count"></div>
   <div id="resolvedList"></div>
 </div></div>
-<footer><div>Desenvolvido por <b>Luís Ricardo de Almeida Siqueira</b></div><div>Administrador: Rodrigo</div><div class="footer-copy">© 2026 Luís Ricardo de Almeida Siqueira — Todos os direitos reservados.</div></footer>
+<footer><div>Desenvolvido por <b>Luís Ricardo de Almeida Siqueira</b></div><div>Administrador: Rodrigo</div><div class="footer-copy">Versão 11</div><div class="footer-copy">© 2026 Luís Ricardo de Almeida Siqueira — Todos os direitos reservados.</div></footer>
 </main>
 </div>
 
@@ -1463,6 +1463,7 @@ window.editField=(x)=>{
      badge.remove();
    }
  }
+ if(field==="carro"||field==="placa"){const lm=el("lastMaint-"+r.id);if(lm)lm.innerHTML=lastMaintHtml(r);}
  safeSet(LS,JSON.stringify(rows));
  // Atualiza somente a luz/status do óleo, sem redesenhar a linha.
  if(field==="kmAtual"||field==="proximaOleoKm"){
@@ -1603,10 +1604,26 @@ window.removeEquipmentItem=function(id,index){const r=rows.find(x=>x.id===id);if
 function mobileLabel(text,required){
  return `<span class="mobile-field-label">${text}${required?' <span class="required-star">*</span>':''}</span>`;
 }
+function lastMaintInfo(r){
+ const plate=normalizePlate(r.placa||"");
+ const list=rows.filter(x=>x.id!==r.id&&x.data&&(x.salvoEm||x.resolvidoEm)&&((r.carro&&x.carro===r.carro)||(plate&&normalizePlate(x.placa||"")===plate)));
+ if(!list.length)return null;
+ const last=list.slice().sort((a,b)=>String(b.data).localeCompare(String(a.data)))[0];
+ const m=String(last.data).match(/^(\d{4})-(\d{2})-(\d{2})/);if(!m)return null;
+ const d=new Date(+m[1],+m[2]-1,+m[3]);const t=new Date();t.setHours(0,0,0,0);
+ const days=Math.round((t-d)/86400000);
+ return {days,date:`${m[3]}/${m[2]}`,tipo:last.tipoManutencao||"Manutenção"};
+}
+function daysText(n){return n<=0?"hoje":n===1?"ontem":`há ${n} dias`}
+function lastMaintHtml(r){
+ const i=lastMaintInfo(r);if(!i)return "";
+ const recent=i.days<=30;
+ return `<div class="last-maint ${recent?"recent":""}">${recent?"⚠️":"🔧"} Manutenção ${daysText(i.days)}<small>${escapeHtml(i.date)} · ${escapeHtml(i.tipo)}</small></div>`;
+}
 function render(updateCount=true){
  const activeRows=rows.filter(r=>!r.resolvidoEm);
  el("tbody").innerHTML=activeRows.map(r=>`<tr>
-<td id="row-${r.id}">${mobileLabel("Carro",true)}<div class="car-field"><span class="car-icon" aria-hidden="true"><svg viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg"><path fill="#14532d" d="M13 22.5 18 12c1-2 3-3 5-3h18c2 0 4 1 5 3l5 10.5c3 1.2 5 4.1 5 7.4v10.6c0 1.9-1.6 3.5-3.5 3.5H11.5C9.6 44 8 42.4 8 40.5V29.9c0-3.3 2-6.2 5-7.4Zm7.8-9.5-3.7 8h29.8l-3.7-8c-.3-.6-.9-1-1.6-1H22.4c-.7 0-1.3.4-1.6 1ZM14 28.5c0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4-4 1.8-4 4Zm28 0c0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4-4 1.8-4 4ZM18 38h28v-4H18v4Z"/><path fill="#fff" d="M22 14h20l3.5 7H18.5l3.5-7Z" opacity=".9"/><circle cx="18" cy="28.5" r="1.5" fill="#fff"/><circle cx="46" cy="28.5" r="1.5" fill="#fff"/></svg>${r.carro?`<span class="car-number-badge" id="carNum-${r.id}">${escapeHtml(carBadgeNum(r.carro))}</span>`:""}</span>${select(r.carro,maintenanceCarOptions(r.carro),"carro",r.id)}</div></td>
+<td id="row-${r.id}">${mobileLabel("Carro",true)}<div class="car-field"><span class="car-icon" aria-hidden="true"><svg viewBox="0 0 64 52" xmlns="http://www.w3.org/2000/svg"><path fill="#14532d" d="M13 22.5 18 12c1-2 3-3 5-3h18c2 0 4 1 5 3l5 10.5c3 1.2 5 4.1 5 7.4v10.6c0 1.9-1.6 3.5-3.5 3.5H11.5C9.6 44 8 42.4 8 40.5V29.9c0-3.3 2-6.2 5-7.4Zm7.8-9.5-3.7 8h29.8l-3.7-8c-.3-.6-.9-1-1.6-1H22.4c-.7 0-1.3.4-1.6 1ZM14 28.5c0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4-4 1.8-4 4Zm28 0c0 2.2 1.8 4 4 4s4-1.8 4-4-1.8-4-4-4-4 1.8-4 4ZM18 38h28v-4H18v4Z"/><path fill="#fff" d="M22 14h20l3.5 7H18.5l3.5-7Z" opacity=".9"/><circle cx="18" cy="28.5" r="1.5" fill="#fff"/><circle cx="46" cy="28.5" r="1.5" fill="#fff"/></svg>${r.carro?`<span class="car-number-badge" id="carNum-${r.id}">${escapeHtml(carBadgeNum(r.carro))}</span>`:""}</span>${select(r.carro,maintenanceCarOptions(r.carro),"carro",r.id)}</div><div id="lastMaint-${r.id}">${lastMaintHtml(r)}</div></td>
 <td class="plate-col">${mobileLabel("Placa",true)}${input(r.placa,"placa",r.id)}</td>
 <td>${select(r.tipoVeiculo,["Carro","Caminhonete","Caminhão","Digger"],"tipoVeiculo",r.id)}</td>
 <td>${input(r.modelo,"modelo",r.id)}</td><td>${mobileLabel("Data",true)}${input(r.data,"data",r.id,"date")}</td><td class="km-col">${mobileLabel("Km Atual",true)}${input(r.kmAtual,"kmAtual",r.id,"number")}</td>
@@ -1933,7 +1950,9 @@ function renderCarList(){
     const fuel=c.combustivel?` • ⛽ ${escapeHtml(c.combustivel)}`:"";
     const {badge,km}=carMaintenanceStatus(c);
     const kmLine=km!==null?` • 🛣️ ${km.toLocaleString("pt-BR")} km`:"";
-    return `<div class="car-item"><div class="car-item-main"><div class="car-item-title">${brandEmblem(c.marca)} ${title}</div><div class="car-item-meta"><b>Marca:</b> ${escapeHtml(c.marca||"Sem marca")} • <b>Placa:</b> ${plate}${ano}${fuel}${kmLine}${c.padrinho?`<br><b>👤 Padrinho:</b> ${escapeHtml(c.padrinho)}`:""}<br><span class="car-status">${status}</span>${badge?` ${badge}`:""}${c.descricao?`<br><b>Obs.:</b> ${escapeHtml(c.descricao)}`:""}</div></div><div class="car-item-actions"><button type="button" class="secondary" onclick="window.editCar('${id}')">✏️ Editar</button><button type="button" class="car-delete" aria-label="Excluir veículo" title="Excluir veículo" onclick="window.deleteCar('${id}')">✕</button></div></div>`;
+    const lm=lastMaintInfo({id:"__painel__",carro:`Carro ${carNum(c)}`,placa:c.placa});
+    const lmLine=lm?`<br><span class="last-maint-inline ${lm.days<=30?"recent":""}">${lm.days<=30?"⚠️":"🔧"} Última manutenção ${daysText(lm.days)} (${escapeHtml(lm.date)} · ${escapeHtml(lm.tipo)})</span>`:"";
+    return `<div class="car-item"><div class="car-item-main"><div class="car-item-title">${brandEmblem(c.marca)} ${title}</div><div class="car-item-meta"><b>Marca:</b> ${escapeHtml(c.marca||"Sem marca")} • <b>Placa:</b> ${plate}${ano}${fuel}${kmLine}${c.padrinho?`<br><b>👤 Padrinho:</b> ${escapeHtml(c.padrinho)}`:""}${lmLine}<br><span class="car-status">${status}</span>${badge?` ${badge}`:""}${c.descricao?`<br><b>Obs.:</b> ${escapeHtml(c.descricao)}`:""}</div></div><div class="car-item-actions"><button type="button" class="secondary" onclick="window.editCar('${id}')">✏️ Editar</button><button type="button" class="car-delete" aria-label="Excluir veículo" title="Excluir veículo" onclick="window.deleteCar('${id}')">✕</button></div></div>`;
   }).join("");
 }
 function carNum(c){const n=Number(c?.numero);if(Number.isFinite(n)&&n>0)return n;const i=cars.indexOf(c);return i>=0?i+1:0;}
@@ -2167,7 +2186,7 @@ rows=safeParse(LS,[]);
 render();
 </script>
 <script>
-if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=10").catch(()=>{});
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js?v=11").catch(()=>{});
 </script>
 
 <style>
@@ -2198,6 +2217,21 @@ footer div{margin:2px 0}.footer-copy{font-size:12px;color:#777;margin-top:6px!im
 #cloudStatus::after{content:" ⓘ";font-size:12px;color:#888;font-weight:normal}
 .legend-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eee}.legend-row>span{font-size:22px;line-height:1}
 #cloudStatus.status-problem{font-size:13px}
+@media(max-width:600px){
+  .tablewrap tbody td:nth-child(5) input[type="date"],
+  .tablewrap tbody td:nth-child(10) input[type="date"]{
+    -webkit-appearance:none;appearance:none;height:44px!important;min-height:44px!important;
+    font-size:15px!important;width:100%!important;max-width:100%!important;padding:8px 10px!important;text-align:left
+  }
+  .tablewrap input[type="date"]::-webkit-date-and-time-value{text-align:left;margin:0}
+  .tablewrap tbody td:nth-child(5),.tablewrap tbody td:nth-child(10){min-height:0}
+}
+.last-maint{margin-top:7px;padding:6px 8px;border-radius:8px;background:#eef4f0;color:#14532d;font-size:12px;font-weight:800;line-height:1.25}
+.last-maint small{display:block;font-weight:600;font-size:11px;opacity:.85}
+.last-maint.recent{background:#fde8d8;color:#a03a00;border:1px solid #f0a46b;animation:lmBlink 1.4s infinite}
+@keyframes lmBlink{50%{box-shadow:0 0 0 3px #f0a46b55}}
+.last-maint-inline{font-size:12px;font-weight:700;color:#14532d}.last-maint-inline.recent{color:#a03a00}
+
 </style>
 <script>
 (function(){
